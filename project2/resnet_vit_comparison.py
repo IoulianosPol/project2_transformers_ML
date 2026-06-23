@@ -106,10 +106,12 @@ vit_train_loader = DataLoader(vit_train_dataset, batch_size=batch_size, shuffle=
 vit_val_loader = DataLoader(vit_val_dataset, batch_size=batch_size, shuffle=False)
 vit_test_loader = DataLoader(vit_test_dataset, batch_size=batch_size, shuffle=False)
 
-
+def count_trainable_params(model):
+    return sum(p.numel() for p in model.parameters() if p.requires_grad)
 # Training Function
 def train_model(model, train_loader, val_loader, test_loader, model_name, optimizer, phase_name):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    print("using ",device)
     model = model.to(device)
 
     criterion = nn.CrossEntropyLoss()
@@ -339,6 +341,11 @@ vit_history_lp, vit_test_acc_lp, vit_time_lp = train_model(vit, vit_train_loader
                                                            vit_optimizer_lp, "Linear_Probing")
 plot_history(vit_history_lp, "ViT-B_16", "Linear_Probing")
 
+cnn_params = count_trainable_params(cnn)
+vit_params = count_trainable_params(vit)
+
+print(f"CNN params: {cnn_params}")
+print(f"ViT params: {vit_params}")
 # Phase 2: Full Fine-Tuning
 
 print("Phase 2: Full Fine-Tuning")
@@ -371,6 +378,11 @@ vit_history_ft, vit_test_acc_ft, vit_time_ft = train_model(vit, vit_train_loader
                                                            vit_optimizer_ft, "Full_Fine-Tuning")
 plot_history(vit_history_ft, "ViT-B_16", "Full_Fine-Tuning")
 
+cnn_params = count_trainable_params(cnn)
+vit_params = count_trainable_params(vit)
+
+print(f"CNN params: {cnn_params}")
+print(f"ViT params: {vit_params}")
 # Phase 3: Visualizations on the final Fine-Tuned models
 
 print("Phase 3: Visualizations")
