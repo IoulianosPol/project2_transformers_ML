@@ -344,7 +344,7 @@ plot_history(vit_history_lp, "ViT-B_16", "Linear_Probing")
 cnn_params = count_trainable_params(cnn)
 vit_params = count_trainable_params(vit)
 
-print(f"CNN params: {cnn_params}")
+print(f"ResNet params: {cnn_params}")
 print(f"ViT params: {vit_params}")
 # Phase 2: Full Fine-Tuning
 
@@ -381,7 +381,7 @@ plot_history(vit_history_ft, "ViT-B_16", "Full_Fine-Tuning")
 cnn_params = count_trainable_params(cnn)
 vit_params = count_trainable_params(vit)
 
-print(f"CNN params: {cnn_params}")
+print(f"ResNet params: {cnn_params}")
 print(f"ViT params: {vit_params}")
 # Phase 3: Visualizations on the final Fine-Tuned models
 
@@ -396,3 +396,36 @@ print(f"ResNet50 (Linear Probing): Test Acc: {cnn_test_acc_lp:.4f}, Avg Time/Epo
 print(f"ResNet50 (Fine-Tuning): Test Acc: {cnn_test_acc_ft:.4f}, Avg Time/Epoch: {cnn_time_ft:.2f}s")
 print(f"ViT-B/16 (Linear Probing): Test Acc: {vit_test_acc_lp:.4f}, Avg Time/Epoch: {vit_time_lp:.2f}s")
 print(f"ViT-B/16 (Fine-Tuning): Test Acc: {vit_test_acc_ft:.4f}, Avg Time/Epoch: {vit_time_ft:.2f}s")
+
+print("\nPhase 4: Extra Experiment - High LR on ViT (Testing Catastrophic Forgetting)")
+
+# Re-initialize a fresh ViT model to start from scratch for this test
+vit_failed_experiment = vit_b_16(weights=vit_weights)
+vit_failed_in_features = vit_failed_experiment.heads.head.in_features
+vit_failed_experiment.heads.head = nn.Linear(in_features=vit_failed_in_features, out_features=num_classes)
+
+# Unfreeze all layers for full fine-tuning
+for param in vit_failed_experiment.parameters():
+    param.requires_grad = True
+
+# HYPOTHESIS TEST: Using a unified, very high learning rate (1e-2) for the entire ViT backbone.
+# We expect this to destroy the pre-trained weights and result in zero learning progress.
+failed_optimizer = torch.optim.Adam(vit_failed_experiment.parameters(), lr=1e-2)
+
+
+failed_vit_history, failed_vit_test_acc,failed_vit_time = train_model(
+    vit_failed_experiment,
+    vit_train_loader,
+    vit_val_loader,
+    vit_test_loader,
+    "ViT-B_16_Failed",
+    failed_optimizer,
+    "High_LR_Failure",
+)
+
+plot_history(failed_vit_history, "ViT-B_16_Failed", "High_LR_Failure")
+print(f"Failed ViT-B/16 (Fine-Tuning): Test Acc: {failed_vit_test_acc:.4f}, Avg Time/Epoch: {failed_vit_time:.2f}s")
+visualize_predictions(vit_failed_experiment, vit_test_loader, class_names, "Failed ViT")
+failed_vit_params = count_trainable_params(vit_failed_experiment)
+print(f"Failed ViT params: {failed_vit_params}")
+
